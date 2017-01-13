@@ -1,1 +1,62 @@
-# snapshot-service
+   _____                       _           _      _____                 __   ___  
+  / ____|                     | |         | |    / ____|               /_ | / _ \ 
+ | (___  _ __   __ _ _ __  ___| |__   ___ | |_  | (_____   _____  __   _| || | | |
+  \___ \| '_ \ / _` | '_ \/ __| '_ \ / _ \| __|  \___ \ \ / / __| \ \ / | || | | |
+  ____) | | | | (_| | |_) \__ | | | | (_) | |_   ____) \ V | (__   \ V /| || |_| |
+ |_____/|_| |_|\__,_| .__/|___|_| |_|\___/ \__| |_____/ \_/ \___|   \_/ |_(_\___/ 
+                    | |                                                           
+                    |_|                                                           
+---------------------------------------------------------------------------------
+
+-System changes:
+  root crontab:
+    0 22 2 * * /usr/bin/yum update -y;reboot
+  logrotate configuration:
+    filename:"/etc/logrotate.d/snap-running-instances"
+    filename:"/etc/logrotate.d/delete-expired-snapshots"
+
+-User changes:
+  User's crontab:
+    0 6 * * * /home/ec2-user/snap-running-instances.sh
+    0 1 * * * /home/ec2-user/delete-expired-snapshots.sh
+  Shell Scripts:
+    ~/show-running-instances.sh
+      This script is called indirectly by snap-running-instances.sh in order to fetch
+      a list of running instances.
+      This script is not used in AMR-np - a manual list is used instead since
+      snapshots aren't part of the SLA for DEVTEST.
+    ~/snap-running-instances.sh
+      This script:
+        snapshots all volumes of all running instances
+        tags the snapshots as daily, weekly, or monthly
+          1st of the month is tagged monthly
+          Sunday is tagged weekly
+          everything else is tagged daily
+    ~/delete-expired-snapshots.sh
+      This scripts cleans up expired snapshots according to date + description:
+        deletes "Daily*" snapshots older than 7 days
+        deletes "Weekly*" snapshots older than 8 weeks
+        deletes "Monthly*" snapshots older than three months
+        deletes all snapshots older than 12 months
+      TODO: This script should probably use tags rather than descriptions
+  log directory:
+    ~/log/created_snapshots.log
+      records the execution timestamp, volume-id, and the description of each snapshot
+      created by  ~/snap-running-instances.sh
+    ~/log/deleted_snapshots.log
+      Records the execution timestamp, snapshot-created timestamp, unix timestamp, and
+      snapshot-id of each snapshot deleted.
+      NOTE:
+        I recommend updating the delete-snapshot command with "--dry-run" when making
+        changes to this script.
+      Occasionally, snapshots will not delete because they are attached to an AMI.
+      This is intended behavior.  An administrator will need to manually deregister
+      the AMI in order to delete the snapshot.
+    ~/log/deleted_amis.log
+      This is a list of AMIs that I generated from the log file so I could remove
+      AMIs older than 12 months.
+      I used the code below:
+        ID=`grep ami- log/deleted_snapshots.log | cut -f3 -d'-'`;while IFS= read -r name; \
+        do echo "ami-"$name;done <<<"$ID" > delete_these_amis.txt; \
+        AMIS=`cat delete_these_amis.txt`;while IFS= read -r ami;do echo $ami; \
+        aws ec2 deregister-image --image-id $ami --dry-run;done <<< "$AMIS"
