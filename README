@@ -14,16 +14,16 @@
   logrotate configuration:
     filename:"/etc/logrotate.d/snap-running-instances"
     filename:"/etc/logrotate.d/delete-expired-snapshots"
-  .aws/config:
-    insert the following lines:
-      [default]
-      region:us-east-1
-      output: table
 
 -User changes:
   User's crontab:
     0 6 * * * /home/ec2-user/snap-running-instances.sh
     0 1 * * * /home/ec2-user/delete-expired-snapshots.sh
+  ~/.aws/config:
+    insert the following lines:
+      [default]
+      region:us-east-1
+      output: table
   Shell Scripts:
     ~/show-running-instances.sh
       This script is called indirectly by snap-running-instances.sh in order to fetch
