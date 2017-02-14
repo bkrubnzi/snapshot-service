@@ -14,6 +14,11 @@
   logrotate configuration:
     filename:"/etc/logrotate.d/snap-running-instances"
     filename:"/etc/logrotate.d/delete-expired-snapshots"
+  .aws/config:
+    insert the following lines:
+      [default]
+      region:us-east-1
+      output: table
 
 -User changes:
   User's crontab:
